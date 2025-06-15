@@ -1,0 +1,33 @@
+apiVersion: inference-engine.groq.io/v1alpha1
+kind: InferenceEngineDeployment
+metadata:
+  name: llama-model
+  namespace: inference-engine
+spec:
+  buildID: build_example123
+  replicas: 2
+  api_metadata:
+    environments:
+      - production
+    external_model_name: llama-3.1-8b
+    throttle_output_tps: 750
+  runtimes:
+    default:
+      should_cache_prefixes: true
+  releaseName: production
+  dev:
+    nova_args:
+      - "--max-concurrent-requests=100"
+      - "--request-timeout=30s"
+      - "--log-level=info"
+---
+apiVersion: inference-engine.groq.io/v1alpha1  
+kind: InferenceEngineDeployment
+metadata:
+  name: clean-deployment
+  namespace: inference-engine
+spec:
+  buildID: build_example456
+  replicas: 1
+  releaseName: production
+  # No dev section - will be created
