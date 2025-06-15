@@ -1,0 +1,28 @@
+apiVersion: groq.io/v1alpha1
+kind: UpsertTransformer
+metadata:
+  name: generic-upsert
+spec:
+  operations:
+    # Add debug flags to web-app deployment container args
+    - target:
+        group: "apps"
+        version: "v1"
+        kind: "Deployment"
+        name: "web-app"
+      path: "spec.template.spec.containers.0.args"
+      values:
+        - "--debug=true"
+        - "--log-level=debug"
+      allowDuplicates: false
+      
+    # Add extra args to worker pod  
+    - target:
+        version: "v1"
+        kind: "Pod"
+        name: "worker-pod"
+      path: "spec.containers.0.args"
+      values:
+        - "--verbose"
+        - "--log-level=info"
+      allowDuplicates: false
