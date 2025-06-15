@@ -1,0 +1,29 @@
+apiVersion: groq.io/v1alpha1
+kind: UpsertTransformer
+metadata:
+  name: generic-upsert
+spec:
+  operations:
+    # Add debug flags to web-app deployment container args
+    - target:
+        apiVersion: "apps/v1"
+        kind: "Deployment"
+        name: "web-app"
+      path: "spec.template.spec.containers[0].args"
+      values:
+        - "--debug=true"
+        - "--log-level=debug"
+      allowDuplicates: false
+      
+    # Add tolerations to worker pod  
+    - target:
+        apiVersion: "v1"
+        kind: "Pod"
+        name: "worker-pod"
+      path: "spec.tolerations"
+      values:
+        - "key: dedicated"
+        - "operator: Equal"
+        - "value: workers"
+        - "effect: NoSchedule"
+      allowDuplicates: false
