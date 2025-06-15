@@ -1,0 +1,16 @@
+apiVersion: groq.io/v1alpha1
+kind: UpsertTransformer
+metadata:
+  name: otel-upsert
+spec:
+  operations:
+    # Add OTEL environment variables to all InferenceEngineDeployments
+    - target:
+        group: "inference-engine.groq.io"
+        version: "v1alpha1"
+        kind: "InferenceEngineDeployment"
+      path: "spec.dev.nova_args"
+      values:
+        - "--agent-env-vars=GROQ_ENABLE_DRIVER_OTEL=1"
+        - "--agent-env-vars=GROQ_QSFP_OTEL_MONITOR=1"
+      allowDuplicates: false

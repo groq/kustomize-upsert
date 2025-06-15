@@ -1,0 +1,15 @@
+version: 2
+release:
+  mode: keep-existing
+builds:
+  - main: ./cmd/kustomize-upsert
+    binary: kustomize-upsert
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+universal_binaries:
+  - replace: true

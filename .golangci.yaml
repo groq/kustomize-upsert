@@ -1,0 +1,32 @@
+version: "2"
+
+run:
+  timeout: 5m
+  concurrency: 8
+  tests: true
+
+formatters:
+  enable:
+    - goimports
+
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - errcheck
+    - gosec
+    - govet
+    - ineffassign
+    - intrange
+    - lll
+    - nilerr
+    - nilnil
+    - predeclared
+    - staticcheck
+    - unconvert
+    - unused
+    - usestdlibvars
+    - wastedassign
+    - whitespace
