@@ -10,7 +10,7 @@ spec:
         version: "v1"
         kind: "Deployment"
         name: "web-app"
-      path: "spec.template.spec.containers.0.args"
+      path: "spec.template.spec.containers[0].args"
       values:
         - "--debug=true"
         - "--log-level=debug"
@@ -21,7 +21,7 @@ spec:
         version: "v1"
         kind: "Pod"
         name: "worker-pod"
-      path: "spec.containers.0.args"
+      path: "spec.containers[0].args"
       values:
         - "--verbose"
         - "--log-level=info"

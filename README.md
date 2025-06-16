@@ -1,6 +1,6 @@
 # Kustomize Upsert Transformer
 
-A generic Go plugin for Kustomize that provides "append if exists, else create" behavior for array fields in Kubernetes resources.
+A generic Go plugin for Kustomize that provides "append if exists, else create" behavior for array fields in Kubernetes resources. Supports regex-based resource targeting for gradual rollouts.
 
 ## Problem Solved
 
@@ -19,16 +19,20 @@ This transformer provides transparent array upsert operations for any Kubernetes
 - ✅ **Configurable**: Support for multiple operations and target selectors
 - ✅ **Duplicate handling**: Optional deduplication of array values
 - ✅ **JSONPath support**: Flexible path targeting (e.g., `spec.containers[0].args`)
+- ✅ **Regex targeting**: Supports regex patterns for resource names (e.g., `name: "web-.*"`)
 
 ## Usage
 
 ### 1. Install the transformer
+
 ```bash
-go build -o kustomize-upsert .
+make build
+# Binary created at ./kustomize-upsert
 # Copy to your PATH or distribute via internal tooling
 ```
 
 ### 2. Create configuration file
+
 ```yaml
 apiVersion: groq.io/v1alpha1
 kind: UpsertTransformer
@@ -38,7 +42,8 @@ spec:
   operations:
     # Add OTEL environment variables to InferenceEngineDeployments
     - target:
-        apiVersion: "inference-engine.groq.io/v1alpha1"
+        group: "inference-engine.groq.io"
+        version: "v1alpha1"
         kind: "InferenceEngineDeployment"
       path: "spec.dev.nova_args"
       values:
@@ -46,29 +51,29 @@ spec:
         - "--agent-env-vars=GROQ_QSFP_OTEL_MONITOR=1"
       allowDuplicates: false
       
-    # Add debug flags to specific deployment
+    # Add debug flags using regex targeting (gradual rollout)
     - target:
-        apiVersion: "apps/v1"
+        group: "apps"
+        version: "v1"
         kind: "Deployment" 
-        name: "my-app"
+        name: "(web-app|api-service|worker-.*)"
       path: "spec.template.spec.containers[0].args"
       values:
         - "--debug"
         - "--verbose"
         
-    # Add tolerations to all pods
+    # Add args to specific pods  
     - target:
-        apiVersion: "v1"
+        version: "v1"
         kind: "Pod"
-      path: "spec.tolerations"
+        name: "my-pod"
+      path: "spec.containers[0].args"
       values:
-        - key: "dedicated"
-          operator: "Equal" 
-          value: "ml-workload"
-          effect: "NoSchedule"
+        - "--feature-flag=enabled"
 ```
 
 ### 3. Use in kustomization.yaml
+
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -81,6 +86,7 @@ transformers:
 ```
 
 ### 4. Build with kustomize
+
 ```bash
 kustomize build --enable-alpha-plugins .
 ```
@@ -100,18 +106,51 @@ kustomize build --enable-alpha-plugins .
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `apiVersion` | `string` | API version to match (optional) |
+| `group` | `string` | API group to match (optional) |
+| `version` | `string` | API version to match (optional) |
 | `kind` | `string` | Resource kind to match (optional) |
-| `name` | `string` | Resource name to match (optional) | 
-| `namespace` | `string` | Resource namespace to match (optional) |
+| `name` | `string` | Resource name to match - supports regex (optional) |
+| `namespace` | `string` | Resource namespace to match - supports regex (optional) |
+
+## Regex Rollout Pattern
+
+The transformer supports a gradual rollout pattern using regex selectors:
+
+### Phase 1: Target specific instances
+```yaml
+- target:
+    name: "(foo-instance|bar-instance)"
+    kind: "InferenceEngineDeployment"
+  path: "spec.dev.nova_args"
+  values: ["--new-feature=enabled"]
+```
+
+### Phase 2: Add more instances to regex
+```yaml
+- target:
+    name: "(foo-instance|bar-instance|baz-instance|qux-.*)"
+    kind: "InferenceEngineDeployment"  
+  path: "spec.dev.nova_args"
+  values: ["--new-feature=enabled"]
+```
+
+### Phase 3: Remove name selector (apply to all)
+```yaml
+- target:
+    kind: "InferenceEngineDeployment"
+  path: "spec.dev.nova_args" 
+  values: ["--new-feature=enabled"]
+```
 
 ## Examples
 
 ### OTEL Environment Variables
+
 ```yaml
 operations:
   - target:
-      apiVersion: "inference-engine.groq.io/v1alpha1"
+      group: "inference-engine.groq.io"
+      version: "v1alpha1"
       kind: "InferenceEngineDeployment"
     path: "spec.dev.nova_args"
     values:
@@ -120,10 +159,12 @@ operations:
 ```
 
 ### Container Arguments
+
 ```yaml
 operations:
   - target:
-      apiVersion: "apps/v1"
+      group: "apps"
+      version: "v1"
       kind: "Deployment"
     path: "spec.template.spec.containers[0].args"
     values:
@@ -132,9 +173,11 @@ operations:
 ```
 
 ### Pod Security Context
+
 ```yaml
 operations:
   - target:
+      version: "v1"
       kind: "Pod"
     path: "spec.securityContext.supplementalGroups"
     values:

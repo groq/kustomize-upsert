@@ -129,29 +129,38 @@ func (t *UpsertTransformer) matchesTarget(item *yaml.RNode, target ResourceSelec
 	return true, nil
 }
 
-// applyUpsert performs the array upsert operation
-func (t *UpsertTransformer) applyUpsert(item *yaml.RNode, op UpsertOperation) error {
-	// Parse the path into components
-	pathComponents := strings.Split(op.Path, ".")
+// parseJSONPath converts a JSONPath string to kustomize path components
+func (t *UpsertTransformer) parseJSONPath(path string) []string {
+	// Split on dots and handle array indexing
+	parts := strings.Split(path, ".")
+	var result []string
 	
-	// Navigate to the parent of the target array
-	current := item
-	var err error
-	
-	// Navigate to parent path, creating nodes as needed
-	for i, component := range pathComponents[:len(pathComponents)-1] {
-		current, err = current.Pipe(yaml.LookupCreate(yaml.MappingNode, component))
-		if err != nil {
-			return fmt.Errorf("failed to navigate to %s (component %d: %s): %w", 
-				op.Path, i, component, err)
+	for _, part := range parts {
+		// Handle array indexing like "containers[0]" -> ["containers", "0"]
+		if strings.Contains(part, "[") && strings.Contains(part, "]") {
+			// Extract field name and index
+			fieldName := part[:strings.Index(part, "[")]
+			indexPart := part[strings.Index(part, "[")+1 : strings.Index(part, "]")]
+			
+			result = append(result, fieldName)
+			result = append(result, indexPart)
+		} else {
+			result = append(result, part)
 		}
 	}
 	
-	// Get or create the target array
-	arrayFieldName := pathComponents[len(pathComponents)-1]
-	arrayNode, err := current.Pipe(yaml.LookupCreate(yaml.SequenceNode, arrayFieldName))
+	return result
+}
+
+// applyUpsert performs the array upsert operation
+func (t *UpsertTransformer) applyUpsert(item *yaml.RNode, op UpsertOperation) error {
+	// Parse the JSONPath using kustomize's path handling
+	pathParts := t.parseJSONPath(op.Path)
+	
+	// Use kustomize's LookupCreate to navigate/create the target array
+	arrayNode, err := item.Pipe(yaml.LookupCreate(yaml.SequenceNode, pathParts...))
 	if err != nil {
-		return fmt.Errorf("failed to create array field %s: %w", arrayFieldName, err)
+		return fmt.Errorf("failed to create/lookup array at path %s: %w", op.Path, err)
 	}
 	
 	// Get existing values to check for duplicates
