@@ -2,7 +2,7 @@ module github.com/groq/kustomize-upsert
 
 go 1.24.0
 
-toolchain go1.25.7
+toolchain go1.26.0
 
 require (
 	gopkg.in/yaml.v3 v3.0.1
